@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CCTV Sense - AI-Powered CCTV Monitoring Dashboard</title>
+  <link rel="stylesheet" href="css/style.css">
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+</head>
+<body>
+  <!-- Top Navigation Bar -->
+  <header class="top-nav">
+    <div class="brand-section">
+      <div class="logo-badge">
+        <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M23 7l-7 5 7 5V7z"/>
+          <rect x="1" y="5" width="15" height="14" rx="2" ry="2"/>
+        </svg>
+      </div>
+      <div>
+        <h1 class="app-title">CCTV Sense</h1>
+        <span class="app-subtitle">AI-Powered CCTV Monitoring &bull; Team HealthNova (TS-39)</span>
+      </div>
+    </div>
+
+    <!-- Live System Indicators -->
+    <div class="nav-controls">
+      <div class="status-pill active">
+        <span class="pulse-dot"></span>
+        <span id="backendStatusText">Flask API: Connected</span>
+      </div>
+      <button id="soundToggleBtn" class="control-btn" title="Toggle Alert Audio Chime">
+        <span id="soundIcon">&#128266;</span> Sound ON
+      </button>
+      <button id="refreshBtn" class="control-btn primary">
+        <span>&#8635;</span> Refresh Feeds
+      </button>
+    </div>
+  </header>
+
+  <!-- KPI Statistics Bar -->
+  <section class="kpi-bar">
+    <div class="kpi-card">
+      <span class="kpi-label">Total Cameras</span>
+      <span class="kpi-val" id="statCamerasCount">6</span>
+      <span class="kpi-sub">All Active</span>
+    </div>
+    <div class="kpi-card high-alert">
+      <span class="kpi-label">HIGH Priority Incidents</span>
+      <span class="kpi-val" id="statHighCount">0</span>
+      <span class="kpi-sub">Immediate Action Required</span>
+    </div>
+    <div class="kpi-card medium-alert">
+      <span class="kpi-label">MEDIUM Priority Incidents</span>
+      <span class="kpi-val" id="statMediumCount">0</span>
+      <span class="kpi-sub">Under Monitoring</span>
+    </div>
+    <div class="kpi-card low-alert">
+      <span class="kpi-label">Routine / LOW Filtered</span>
+      <span class="kpi-val" id="statLowCount">0</span>
+      <span class="kpi-sub">Noise Suppressed</span>
+    </div>
+    <div class="kpi-card">
+      <span class="kpi-label">Resolved Today</span>
+      <span class="kpi-val" id="statResolvedCount">0</span>
+      <span class="kpi-sub">Actioned Cases</span>
+    </div>
+  </section>
+
+  <!-- Main Multi-Panel Workspace -->
+  <main class="dashboard-grid">
+    <!-- Left Column: Live Multi-Camera Grid & Feed Inspector -->
+    <section class="panel camera-panel">
+      <div class="panel-header">
+        <h2>Live Camera Streams</h2>
+        <div class="header-actions">
+          <select id="cameraSelectFilter" class="compact-select">
+            <option value="ALL">All Cameras Grid</option>
+            <option value="CAM-01">CAM-01 (Main Entrance)</option>
+            <option value="CAM-02">CAM-02 (Perimeter West)</option>
+            <option value="CAM-03">CAM-03 (Server Vault)</option>
+            <option value="CAM-04">CAM-04 (Parking Lot)</option>
+            <option value="CAM-05">CAM-05 (Emergency Hallway)</option>
+            <option value="CAM-06">CAM-06 (Cafeteria Courtyard)</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- Live Video Feed Container with Canvas Overlay -->
+      <div class="camera-stream-container" id="streamContainer">
+        <div class="stream-display" id="mainStreamDisplay">
+          <div class="stream-overlay-header">
+            <span class="cam-tag" id="currentCamTag">CAM-02 &bull; PERIMETER FENCE WEST</span>
+            <span class="rec-indicator"><span class="rec-dot"></span> LIVE REC [1080p 30fps]</span>
+          </div>
+
+          <!-- Video Simulation / Canvas Target -->
+          <div class="video-canvas-wrapper">
+            <canvas id="surveillanceCanvas" width="640" height="360"></canvas>
+            <div id="detectionOverlayBadge" class="overlay-badge hidden">
+              <span id="overlayBadgeText">ALERT DETECTED</span>
+            </div>
+          </div>
+
+          <!-- Bottom Camera Controls -->
+          <div class="stream-overlay-footer">
+            <div class="feed-metadata">
+              <span id="feedLocation">Boundary Wall - Sector 4</span>
+              <span class="zone-badge" id="feedZone">ZONE: PERIMETER</span>
+            </div>
+            <div class="simulation-actions">
+              <button class="action-btn sim-intrusion" onclick="simulateIncident('INTRUSION')">Simulate Intrusion</button>
+              <button class="action-btn sim-medical" onclick="simulateIncident('FALL_MEDICAL')">Simulate Fall</button>
+              <button class="action-btn sim-bag" onclick="simulateIncident('UNATTENDED_BAGGAGE')">Simulate Bag</button>
+              <button class="action-btn sim-routine" onclick="simulateIncident('ROUTINE_MOTION')">Routine Motion</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Camera Thumbnails Ribbon -->
+        <div class="camera-thumbnails-ribbon" id="cameraRibbon">
+          <!-- Dynamically populated -->
+        </div>
+      </div>
+    </section>
+
+    <!-- Right Column: Priority Triage & AI Event Decision Engine -->
+    <section class="panel triage-panel">
+      <div class="panel-header">
+        <h2>Live Event Triage</h2>
+        <span class="badge-tag">AI Importance Engine</span>
+      </div>
+
+      <!-- Live Notification Banner for High Priority -->
+      <div id="highAlertBanner" class="high-alert-banner hidden">
+        <div class="alert-icon">&#9888;</div>
+        <div class="alert-text">
+          <strong id="bannerTitle">CRITICAL INCIDENT DETECTED</strong>
+          <p id="bannerDesc">Perimeter breach on CAM-02. Security dispatch advised.</p>
+        </div>
+        <button class="dismiss-btn" onclick="dismissBanner()">Acknowledge</button>
+      </div>
+
+      <!-- Real-time Event Stream -->
+      <div class="triage-feed" id="triageFeed">
+        <!-- Live triage cards injected by app.js -->
+        <div class="empty-state">Loading surveillance events...</div>
+      </div>
+    </section>
+  </main>
+
+  <!-- Bottom Section: Quick Incident Search in Recorded Footage -->
+  <section class="panel search-panel">
+    <div class="panel-header">
+      <div>
+        <h2>Quick Incident Search in Recorded Footage</h2>
+        <p class="section-desc">Instantly filter and search past incidents across all cameras, severity levels, and event classifications.</p>
+      </div>
+      <button class="control-btn" id="clearFiltersBtn">Reset Filters</button>
+    </div>
+
+    <!-- Search & Filter Controls (PPT Slide 4: Faster Incident Search) -->
+    <div class="search-filter-grid">
+      <div class="filter-group">
+        <label for="filterQuery">Keyword Search</label>
+        <input type="text" id="filterQuery" placeholder="Search description, camera, person, breach...">
+      </div>
+
+      <div class="filter-group">
+        <label for="filterImportance">Event Importance</label>
+        <select id="filterImportance">
+          <option value="">All Severities</option>
+          <option value="HIGH">HIGH (Critical Threats)</option>
+          <option value="MEDIUM">MEDIUM (Suspicious)</option>
+          <option value="LOW">LOW (Routine / Filtered)</option>
+        </select>
+      </div>
+
+      <div class="filter-group">
+        <label for="filterEventType">Event Type</label>
+        <select id="filterEventType">
+          <option value="">All Categories</option>
+          <option value="INTRUSION">Intrusion / Breach</option>
+          <option value="UNAUTHORIZED_ACCESS">Unauthorized Access</option>
+          <option value="FALL_MEDICAL">Fall / Medical Hazard</option>
+          <option value="UNATTENDED_BAGGAGE">Unattended Baggage</option>
+          <option value="LOITERING">Loitering</option>
+          <option value="CROWD_SURGE">Crowd Surge</option>
+          <option value="ROUTINE_MOTION">Routine Motion</option>
+        </select>
+      </div>
+
+      <div class="filter-group">
+        <label for="filterCamera">Camera</label>
+        <select id="filterCamera">
+          <option value="">All Cameras</option>
+          <option value="CAM-01">CAM-01 (Main Entrance)</option>
+          <option value="CAM-02">CAM-02 (Perimeter West)</option>
+          <option value="CAM-03">CAM-03 (Server Vault)</option>
+          <option value="CAM-04">CAM-04 (South Parking)</option>
+          <option value="CAM-05">CAM-05 (Emergency Hall)</option>
+          <option value="CAM-06">CAM-06 (Courtyard)</option>
+        </select>
+      </div>
+
+      <div class="filter-group">
+        <label for="filterStatus">Status</label>
+        <select id="filterStatus">
+          <option value="">All Statuses</option>
+          <option value="NEW">New (Unreviewed)</option>
+          <option value="ACKNOWLEDGED">Acknowledged</option>
+          <option value="RESOLVED">Resolved</option>
+          <option value="FALSE_ALARM">False Alarm</option>
+        </select>
+      </div>
+    </div>
+
+    <!-- Incident Search Results Table -->
+    <div class="table-responsive">
+      <table class="incident-table">
+        <thead>
+          <tr>
+            <th>ID</th>
+            <th>Timestamp</th>
+            <th>Camera</th>
+            <th>Importance</th>
+            <th>Event Classification</th>
+            <th>Description & AI Factors</th>
+            <th>Confidence</th>
+            <th>Status</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody id="incidentTableBody">
+          <!-- Injected via JavaScript -->
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- Incident Review Modal -->
+  <div id="incidentModal" class="modal hidden">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3 id="modalTitle">Incident Details</h3>
+        <button class="close-btn" onclick="closeModal()">&times;</button>
+      </div>
+      <div class="modal-body" id="modalBody">
+        <!-- Injected dynamically -->
+      </div>
+      <div class="modal-footer" id="modalFooter">
+        <!-- Action buttons -->
+      </div>
+    </div>
+  </div>
+
+  <!-- Footer -->
+  <footer class="app-footer">
+    <p><strong>CCTV Sense</strong> &bull; AI-Powered CCTV Monitoring &bull; Team HealthNova (TS-39) &bull; TechSprint Hackathon</p>
+    <p class="copyright">&copy; 2026 HealthNova. All Rights Reserved. St. Peter's Engineering College, EEE.</p>
+  </footer>
+
+  <script src="js/app.js"></script>
+</body>
+</html>

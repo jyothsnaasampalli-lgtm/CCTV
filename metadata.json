@@ -1,0 +1,6 @@
+{
+  "name": "Full-Stack Project Application",
+  "description": "Full-stack web application with Flask backend, SQLite database, machine learning integration, and responsive frontend.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
